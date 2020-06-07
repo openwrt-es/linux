@@ -1092,6 +1092,17 @@ config SENSORS_MENF21BMC_HWMON
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc_hwmon.
 
+config SENSORS_NB6_HWMON
+	tristate "SFR NeufBox 6 (NB6) Hardware Monitoring"
+	depends on I2C
+	depends on PWM
+	help
+	  If you say yes here you get support for SFR NeufBox 6 PWM LEDs,
+	  temperature and voltage sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nb6-hwmon.
+
 config SENSORS_ADCXX
 	tristate "National Semiconductor ADCxxxSxxx"
 	depends on SPI_MASTER

@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/sfr,neufbox6.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SFR NeufBox 6 Sensor
+
+maintainers:
+  - Álvaro Fernández Rojas <noltari@gmail.com>
+
+description: |
+  SFR NeufBox 6 is equipped with an I2C connected chip to monitor voltage,
+  temperature and other stats. It also has PWM LEDs that can be manually
+  controlled or set to specific hardware monitoring modes.
+
+properties:
+  compatible:
+    const: sfr,nb6_hwmon
+
+  reg:
+    description: I2C address
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    pwm: hwmon@60 {
+      compatible = "sfr,nb6_hwmon";
+      reg = <0x60>;
+    };
+
+    pwm-leds {
+      compatible = "pwm-leds";
+
+      service1_red {
+        label = "neufbox-6-foxconn-r0:red:service1";
+        pwms = <&pwm 0 31>;
+        max-brightness = <31>;
+      };
+
+      service2_red {
+        label = "neufbox-6-foxconn-r0:red:service2";
+        pwms = <&pwm 1 31>;
+        max-brightness = <31>;
+      };
+
+      service3_red {
+        label = "neufbox-6-foxconn-r0:red:service3";
+        pwms = <&pwm 2 31>;
+        max-brightness = <31>;
+      };
+
+      service1_green {
+        label = "neufbox-6-foxconn-r0:green:service1";
+        pwms = <&pwm 3 31>;
+        max-brightness = <31>;
+        default-state = "on";
+      };
+
+      service2_green {
+        label = "neufbox-6-foxconn-r0:green:service2";
+        pwms = <&pwm 4 31>;
+        max-brightness = <31>;
+      };
+
+      service3_green {
+        label = "neufbox-6-foxconn-r0:green:service3";
+        pwms = <&pwm 5 31>;
+        max-brightness = <31>;
+      };
+
+      wan_white {
+        label = "neufbox-6-foxconn-r0:white:wan";
+        pwms = <&pwm 6 31>;
+        max-brightness = <31>;
+      };
+
+      voip_white {
+        label = "neufbox-6-foxconn-r0:white:voip";
+        pwms = <&pwm 7 31>;
+        max-brightness = <31>;
+      };
+
+      wlan_white {
+        label = "neufbox-6-foxconn-r0:white:wlan";
+        pwms = <&pwm 8 31>;
+        max-brightness = <31>;
+      };
+    };
+...

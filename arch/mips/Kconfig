@@ -230,6 +230,7 @@ config BMIPS_GENERIC
 	select ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
 	select ARCH_HAS_PHYS_TO_DMA
 	select BOOT_RAW
+	select HAVE_PCI
 	select NO_EXCEPT_FILL
 	select USE_OF
 	select CEVT_R4K

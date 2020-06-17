@@ -29,6 +29,7 @@ obj-$(CONFIG_PCI_XTALK_BRIDGE)	+= pci-xtalk-bridge.o
 # These are still pretty much in the old state, watch, go blind.
 #
 obj-$(CONFIG_ATH79)		+= fixup-ath79.o
+obj-$(CONFIG_BMIPS_GENERIC)	+= fixup-bmips.o
 obj-$(CONFIG_MIPS_COBALT)	+= fixup-cobalt.o
 obj-$(CONFIG_LEMOTE_FULOONG2E)	+= fixup-fuloong2e.o ops-loongson2.o
 obj-$(CONFIG_LEMOTE_MACH2F)	+= fixup-lemote2f.o ops-loongson2.o

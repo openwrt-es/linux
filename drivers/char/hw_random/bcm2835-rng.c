@@ -121,6 +121,15 @@ static void bcm2835_rng_cleanup(struct hwrng *rng)
 
 struct bcm2835_rng_of_data {
 	bool mask_interrupts;
+	unsigned short quality;
+};
+
+static const struct bcm2835_rng_of_data bcm283x_rng_of_data = {
+	.quality = 1000,
+};
+
+static const struct bcm2835_rng_of_data bcm6368_rng_of_data = {
+	.quality = 700,
 };
 
 static const struct bcm2835_rng_of_data nsp_rng_of_data = {
@@ -128,10 +137,10 @@ static const struct bcm2835_rng_of_data nsp_rng_of_data = {
 };
 
 static const struct of_device_id bcm2835_rng_of_match[] = {
-	{ .compatible = "brcm,bcm2835-rng"},
+	{ .compatible = "brcm,bcm2835-rng", .data = &bcm283x_rng_of_data },
 	{ .compatible = "brcm,bcm-nsp-rng", .data = &nsp_rng_of_data },
 	{ .compatible = "brcm,bcm5301x-rng", .data = &nsp_rng_of_data },
-	{ .compatible = "brcm,bcm6368-rng"},
+	{ .compatible = "brcm,bcm6368-rng", .data = &bcm6368_rng_of_data },
 	{},
 };
 
@@ -171,8 +180,10 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 
 		/* Check for rng init function, execute it */
 		of_data = rng_id->data;
-		if (of_data)
+		if (of_data) {
 			priv->mask_interrupts = of_data->mask_interrupts;
+			priv->rng.quality = of_data->quality;
+		}
 	}
 
 	/* register driver */

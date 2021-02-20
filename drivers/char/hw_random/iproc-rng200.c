@@ -199,6 +199,7 @@ static int iproc_rng200_probe(struct platform_device *pdev)
 	priv->rng.read = iproc_rng200_read;
 	priv->rng.init = iproc_rng200_init;
 	priv->rng.cleanup = iproc_rng200_cleanup;
+	priv->rng.quality = 1024;
 
 	/* Register driver */
 	ret = devm_hwrng_register(dev, &priv->rng);

@@ -113,6 +113,10 @@ config I8259
 	bool
 	select IRQ_DOMAIN
 
+config BCM6345_EXT_IRQ
+	bool "BCM6345 External IRQ Controller"
+	select IRQ_DOMAIN
+
 config BCM6345_L1_IRQ
 	bool
 	select GENERIC_IRQ_CHIP

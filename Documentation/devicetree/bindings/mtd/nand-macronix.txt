@@ -16,6 +16,9 @@ in children nodes.
 Required NAND chip properties in children mode:
 - randomizer enable: should be "mxic,enable-randomizer-otp"
 
+Optional NAND chip properties in children mode:
+- block protection disable: should be "mxic,disable-block-protection"
+
 Example:
 
 	nand: nand-controller@unit-address {

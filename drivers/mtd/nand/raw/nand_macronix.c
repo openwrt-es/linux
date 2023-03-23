@@ -219,8 +219,12 @@ static int mxic_nand_unlock(struct nand_chip *chip, loff_t ofs, uint64_t len)
 
 static void macronix_nand_block_protection_support(struct nand_chip *chip)
 {
+	struct device_node *dn = nand_get_flash_node(chip);
 	u8 feature[ONFI_SUBFEATURE_PARAM_LEN];
 	int ret;
+
+	if (of_property_read_bool(dn, "mxic,disable-block-protection"))
+		return;
 
 	bitmap_set(chip->parameters.get_feature_list,
 		   ONFI_FEATURE_ADDR_MXIC_PROTECTION, 1);

@@ -273,6 +273,15 @@ config LEDS_COBALT_RAQ
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
 
+config LEDS_SERCOMM_MSP430
+	tristate "LED support for Sercomm MSP430 SPI LED controllers"
+	depends on LEDS_CLASS
+	depends on SPI
+	depends on OF
+	help
+          This option enables support for the Sercomm MSP430G2513 SPI LED
+	  controllers.
+
 config LEDS_SUNFIRE
 	tristate "LED support for SunFire servers."
 	depends on LEDS_CLASS

@@ -337,15 +337,20 @@ static void b53_set_forwarding(struct b53_device *dev, int enable)
 
 	/* Include IMP port in dumb forwarding mode
 	 */
-	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, &mgmt);
-	mgmt |= B53_MII_DUMB_FWDG_EN;
-	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
+	if (!is5325(dev)) {
+		b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, &mgmt);
+		mgmt |= B53_MII_DUMB_FWDG_EN;
+		b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
+	}
 
 	/* Look at B53_UC_FWD_EN and B53_MC_FWD_EN to decide whether
 	 * frames should be flooded or not.
 	 */
 	b53_read8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, &mgmt);
-	mgmt |= B53_UC_FWD_EN | B53_MC_FWD_EN | B53_IPMC_FWD_EN;
+	if (is5325(dev))
+		mgmt |= B53_IP_MCAST_25;
+	else
+		mgmt |= B53_UC_FWD_EN | B53_MC_FWD_EN | B53_IPMC_FWD_EN;
 	b53_write8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, mgmt);
 }
 
@@ -357,6 +362,9 @@ static void b53_enable_vlan(struct b53_device *dev, int port, bool enable,
 	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, &mgmt);
 	b53_read8(dev, B53_VLAN_PAGE, B53_VLAN_CTRL0, &vc0);
 	b53_read8(dev, B53_VLAN_PAGE, B53_VLAN_CTRL1, &vc1);
+
+	if (is5325(dev))
+		mgmt |= SM_SW_RETRY_LIM_DIS | SM_SW_NO_BLK_CD;
 
 	if (is5325(dev) || is5365(dev)) {
 		b53_read8(dev, B53_VLAN_PAGE, B53_VLAN_CTRL4_25, &vc4);
@@ -459,6 +467,9 @@ static int b53_flush_arl(struct b53_device *dev, u8 mask)
 {
 	unsigned int i;
 
+	if (is5325(dev))
+		return 0;
+
 	b53_write8(dev, B53_CTRL_PAGE, B53_FAST_AGE_CTRL,
 		   FAST_AGE_DONE | FAST_AGE_DYNAMIC | mask);
 
@@ -483,6 +494,9 @@ out:
 
 static int b53_fast_age_port(struct b53_device *dev, int port)
 {
+	if (is5325(dev))
+		return 0;
+
 	b53_write8(dev, B53_CTRL_PAGE, B53_FAST_AGE_PORT_CTRL, port);
 
 	return b53_flush_arl(dev, FAST_AGE_PORT);
@@ -490,6 +504,9 @@ static int b53_fast_age_port(struct b53_device *dev, int port)
 
 static int b53_fast_age_vlan(struct b53_device *dev, u16 vid)
 {
+	if (is5325(dev))
+		return 0;
+
 	b53_write16(dev, B53_CTRL_PAGE, B53_FAST_AGE_VID_CTRL, vid);
 
 	return b53_flush_arl(dev, FAST_AGE_VLAN);
@@ -518,12 +535,36 @@ static void b53_port_set_ucast_flood(struct b53_device *dev, int port,
 {
 	u16 uc;
 
-	b53_read16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, &uc);
-	if (unicast)
-		uc |= BIT(port);
-	else
-		uc &= ~BIT(port);
-	b53_write16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, uc);
+	if (is5325(dev)) {
+		u8 rc;
+
+		if (port == B53_CPU_PORT_25)
+			port = B53_CPU_PORT;
+
+		b53_read16(dev, B53_IEEE_PAGE, B53_IEEE_UCAST_DLF, &uc);
+		if (unicast)
+			uc |= BIT(port) | B53_IEEE_UCAST_DROP_EN;
+		else
+			uc &= ~BIT(port);
+		b53_write16(dev, B53_IEEE_PAGE, B53_IEEE_UCAST_DLF, uc);
+
+		if (port >= B53_CPU_PORT_25)
+			return;
+
+		b53_read8(dev, B53_RATE_CTL_PAGE, B53_RATE_CONTROL(port), &rc);
+		if (unicast)
+			rc |= (RC_DLF_EN | RC_BKT_SIZE_8K | RC_PERCENT_40);
+		else
+			rc &= ~(RC_DLF_EN);
+		b53_write8(dev, B53_RATE_CTL_PAGE, B53_RATE_CONTROL(port), rc);
+	} else {
+		b53_read16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, &uc);
+		if (unicast)
+			uc |= BIT(port);
+		else
+			uc &= ~BIT(port);
+		b53_write16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, uc);
+	}
 }
 
 static void b53_port_set_mcast_flood(struct b53_device *dev, int port,
@@ -531,25 +572,53 @@ static void b53_port_set_mcast_flood(struct b53_device *dev, int port,
 {
 	u16 mc;
 
-	b53_read16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, &mc);
-	if (multicast)
-		mc |= BIT(port);
-	else
-		mc &= ~BIT(port);
-	b53_write16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, mc);
+	if (is5325(dev)) {
+		u8 rc;
 
-	b53_read16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, &mc);
-	if (multicast)
-		mc |= BIT(port);
-	else
-		mc &= ~BIT(port);
-	b53_write16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, mc);
+		if (port == B53_CPU_PORT_25)
+			port = B53_CPU_PORT;
+
+		b53_read16(dev, B53_IEEE_PAGE, B53_IEEE_MCAST_DLF, &mc);
+		if (multicast)
+			mc |= BIT(port) | B53_IEEE_MCAST_DROP_EN;
+		else
+			mc &= ~BIT(port);
+		b53_write16(dev, B53_IEEE_PAGE, B53_IEEE_MCAST_DLF, mc);
+
+		if (port >= B53_CPU_PORT_25)
+			return;
+
+		b53_read8(dev, B53_RATE_CTL_PAGE, B53_RATE_CONTROL(port), &rc);
+		if (multicast)
+			rc |= (RC_BCAST_EN | RC_MCAST_EN | RC_BKT_SIZE_8K |
+			       RC_PERCENT_40);
+		else
+			rc &= ~(RC_BCAST_EN | RC_MCAST_EN);
+		b53_write8(dev, B53_RATE_CTL_PAGE, B53_RATE_CONTROL(port), rc);
+	} else {
+		b53_read16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, &mc);
+		if (multicast)
+			mc |= BIT(port);
+		else
+			mc &= ~BIT(port);
+		b53_write16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, mc);
+
+		b53_read16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, &mc);
+		if (multicast)
+			mc |= BIT(port);
+		else
+			mc &= ~BIT(port);
+		b53_write16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, mc);
+	}
 }
 
 static void b53_port_set_learning(struct b53_device *dev, int port,
 				  bool learning)
 {
 	u16 reg;
+
+	if (is5325(dev))
+		return;
 
 	b53_read16(dev, B53_CTRL_PAGE, B53_DIS_LEARNING, &reg);
 	if (learning)
@@ -669,6 +738,10 @@ void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 	else if (port == 5)
 		hdr_ctl |= GC_FRM_MGMT_PORT_M;
 	b53_write8(dev, B53_MGMT_PAGE, B53_GLOBAL_CONFIG, hdr_ctl);
+
+	/* B53_BRCM_HDR not present on BCM5325 */
+	if (is5325(dev))
+		return;
 
 	/* Enable Broadcom tags for IMP port */
 	b53_read8(dev, B53_MGMT_PAGE, B53_BRCM_HDR, &hdr_ctl);
@@ -1141,6 +1214,9 @@ static int b53_setup(struct dsa_switch *ds)
 
 	b53_enable_bpdu(ds);
 
+	if (is5325(dev))
+		b53_write8(dev, B53_CTRL_PAGE, B53_PD_MODE_CTRL_25, 0);
+
 	ret = b53_apply_config(dev);
 	if (ret) {
 		dev_err(ds->dev, "failed to apply configuration\n");
@@ -1174,6 +1250,9 @@ static void b53_force_link(struct b53_device *dev, int port, int link)
 		off = B53_PORT_OVERRIDE_CTRL;
 		val = PORT_OVERRIDE_EN;
 	} else {
+		if (is5325(dev))
+			return;
+
 		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
 		val = GMII_PO_EN;
 	}
@@ -1198,6 +1277,9 @@ static void b53_force_port_config(struct b53_device *dev, int port,
 		off = B53_PORT_OVERRIDE_CTRL;
 		val = PORT_OVERRIDE_EN;
 	} else {
+		if (is5325(dev))
+			return;
+
 		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
 		val = GMII_PO_EN;
 	}
@@ -1227,10 +1309,19 @@ static void b53_force_port_config(struct b53_device *dev, int port,
 		return;
 	}
 
-	if (rx_pause)
-		reg |= PORT_OVERRIDE_RX_FLOW;
-	if (tx_pause)
-		reg |= PORT_OVERRIDE_TX_FLOW;
+	if (rx_pause) {
+		if (is5325(dev))
+			reg |= PORT_OVERRIDE_LP_FLOW_25;
+		else
+			reg |= PORT_OVERRIDE_RX_FLOW;
+	}
+
+	if (tx_pause) {
+		if (is5325(dev))
+			reg |= PORT_OVERRIDE_LP_FLOW_25;
+		else
+			reg |= PORT_OVERRIDE_TX_FLOW;
+	}
 
 	b53_write8(dev, B53_CTRL_PAGE, off, reg);
 }
@@ -1348,11 +1439,17 @@ static void b53_adjust_5325_mii(struct dsa_switch *ds, int port)
 void b53_port_event(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
+	int port_mask;
 	bool link;
 	u16 sts;
 
+	if (is5325(dev) && port == B53_CPU_PORT_25)
+		port_mask = BIT(B53_CPU_PORT);
+	else
+		port_mask = BIT(port);
+
 	b53_read16(dev, B53_STAT_PAGE, B53_LINK_STAT, &sts);
-	link = !!(sts & BIT(port));
+	link = !!(sts & port_mask);
 	dsa_port_phylink_mac_change(ds, port, link);
 }
 EXPORT_SYMBOL(b53_port_event);
@@ -2059,6 +2156,13 @@ void b53_br_set_stp_state(struct dsa_switch *ds, int port, u8 state)
 	reg &= ~PORT_CTRL_STP_STATE_MASK;
 	reg |= hw_state;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
+
+	if (is5325(dev)) {
+		b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(B53_CPU_PORT), &reg);
+		reg &= ~PORT_CTRL_STP_STATE_MASK;
+		reg |= hw_state;
+		b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(B53_CPU_PORT), reg);
+	}
 }
 EXPORT_SYMBOL(b53_br_set_stp_state);
 

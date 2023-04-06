@@ -29,6 +29,7 @@
 #define B53_ARLIO_PAGE			0x05 /* ARL Access */
 #define B53_FRAMEBUF_PAGE		0x06 /* Management frame access */
 #define B53_MEM_ACCESS_PAGE		0x08 /* Memory access */
+#define B53_IEEE_PAGE			0x0a /* IEEE 802.1X */
 
 /* PHY Registers */
 #define B53_PORT_MII_PAGE(i)		(0x10 + (i)) /* Port i MII Registers */
@@ -46,6 +47,9 @@
 
 /* VLAN Registers */
 #define B53_VLAN_PAGE			0x34
+
+/* Rate Control Registers */
+#define B53_RATE_CTL_PAGE		0x35
 
 /* Jumbo Frame Registers */
 #define B53_JUMBO_PAGE			0x40
@@ -83,6 +87,9 @@
 #define B53_SWITCH_MODE			0x0b
 #define   SM_SW_FWD_MODE		BIT(0)	/* 1 = Managed Mode */
 #define   SM_SW_FWD_EN			BIT(1)	/* Forwarding Enable */
+#define   SM_SW_RETRY_LIM_DIS		BIT(2)
+#define   SM_SW_NO_BLK_CD		BIT(3)
+
 
 /* IMP Port state override register (8 bit) */
 #define B53_PORT_OVERRIDE_CTRL		0x0e
@@ -92,6 +99,7 @@
 #define   PORT_OVERRIDE_SPEED_10M	(0 << PORT_OVERRIDE_SPEED_S)
 #define   PORT_OVERRIDE_SPEED_100M	(1 << PORT_OVERRIDE_SPEED_S)
 #define   PORT_OVERRIDE_SPEED_1000M	(2 << PORT_OVERRIDE_SPEED_S)
+#define   PORT_OVERRIDE_LP_FLOW_25	BIT(3) /* BCM5325 only */
 #define   PORT_OVERRIDE_RV_MII_25	BIT(4) /* BCM5325 only */
 #define   PORT_OVERRIDE_RX_FLOW		BIT(4)
 #define   PORT_OVERRIDE_TX_FLOW		BIT(5)
@@ -103,6 +111,7 @@
 
 /* IP Multicast control (8 bit) */
 #define B53_IP_MULTICAST_CTRL		0x21
+#define  B53_IP_MCAST_25		BIT(0)
 #define  B53_IPMC_FWD_EN		BIT(1)
 #define  B53_UC_FWD_EN			BIT(6)
 #define  B53_MC_FWD_EN			BIT(7)
@@ -357,6 +366,18 @@
 #define B53_ARL_SRCH_RSTL(x)		(B53_ARL_SRCH_RSTL_0 + ((x) * 0x10))
 
 /*************************************************************************
+ * IEEE 802.1X Registers
+ *************************************************************************/
+
+/* Multicast DLF Drop Control register (16 bit) */
+#define B53_IEEE_MCAST_DLF		0x94
+#define B53_IEEE_MCAST_DROP_EN		BIT(11)
+
+/* Unicast DLF Drop Control register (16 bit) */
+#define B53_IEEE_UCAST_DLF		0x96
+#define B53_IEEE_UCAST_DROP_EN		BIT(11)
+
+/*************************************************************************
  * Port VLAN Registers
  *************************************************************************/
 
@@ -465,6 +486,28 @@
 
 /* VLAN Port Default Tag (16 bit) */
 #define B53_VLAN_PORT_DEF_TAG(i)	(0x10 + 2 * (i))
+
+/*************************************************************************
+ * Rate Control Page Registers
+ *************************************************************************/
+
+#define B53_RATE_CONTROL(i)		(0x00 + (i))
+#define   RC_PERCENT_S			0
+#define   RC_PERCENT_10			(0 << RC_PERCENT_S)
+#define   RC_PERCENT_20			(1 << RC_PERCENT_S)
+#define   RC_PERCENT_30			(2 << RC_PERCENT_S)
+#define   RC_PERCENT_40			(3 << RC_PERCENT_S)
+#define   RC_PERCENT_MASK		(3 << RC_PERCENT_S)
+#define   RC_BKT_SIZE_S			2
+#define   RC_BKT_SIZE_2K		(0 << RC_BKT_SIZE_S)
+#define   RC_BKT_SIZE_4K		(1 << RC_BKT_SIZE_S)
+#define   RC_BKT_SIZE_6K		(2 << RC_BKT_SIZE_S)
+#define   RC_BKT_SIZE_8K		(3 << RC_BKT_SIZE_S)
+#define   RC_BKT_SIZE_MASK		(3 << RC_BKT_SIZE_S)
+#define   RC_DLF_EN			BIT(4)
+#define   RC_BCAST_EN			BIT(5)
+#define   RC_MCAST_EN			BIT(6)
+#define   RC_DROP_FRAME			BIT(7)
 
 /*************************************************************************
  * Jumbo Frame Page Registers

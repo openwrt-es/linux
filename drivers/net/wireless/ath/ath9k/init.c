@@ -615,7 +615,6 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 
 	ah->nvmem_blob_len = len;
 	ah->ah_flags &= ~AH_USE_EEPROM;
-	ah->ah_flags |= AH_NO_EEP_SWAP;
 
 	return 0;
 }
@@ -688,8 +687,10 @@ static int ath9k_of_init(struct ath_softc *sc)
 			return ret;
 
 		ah->ah_flags &= ~AH_USE_EEPROM;
-		ah->ah_flags |= AH_NO_EEP_SWAP;
 	}
+
+	if (!of_property_read_bool(np, "qca,endian-check"))
+		ah->ah_flags |= AH_NO_EEP_SWAP;
 
 	of_get_mac_address(np, common->macaddr);
 

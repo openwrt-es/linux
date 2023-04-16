@@ -44,6 +44,11 @@ properties:
 
   ieee80211-freq-limit: true
 
+  qca,endian-check:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Indicates that the EEPROM endianness should be checked
+
   qca,no-eeprom:
     $ref: /schemas/types.yaml#/definitions/flag
     description:

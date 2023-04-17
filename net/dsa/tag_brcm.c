@@ -32,6 +32,10 @@
 #define BRCM_LEG_MULTICAST	(1 << 5)
 #define BRCM_LEG_EGRESS		(2 << 5)
 #define BRCM_LEG_INGRESS	(3 << 5)
+#define BRCM_LEG_LEN_HI(x)	(((x) >> 8) & 0x7)
+
+/* 4th byte in the tag */
+#define BRCM_LEG_LEN_LO(x)	((x) & 0xff)
 
 /* 6th byte in the tag */
 #define BRCM_LEG_PORT_ID	(0xf)
@@ -217,6 +221,8 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 					 struct net_device *dev)
 {
 	struct dsa_port *dp = dsa_user_to_port(dev);
+	unsigned int skb_len;
+	__wsum skb_csum;
 	u8 *brcm_tag;
 
 	/* The Ethernet switch we are interfaced with needs packets to be at
@@ -231,6 +237,9 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 	if (__skb_put_padto(skb, ETH_ZLEN + BRCM_LEG_TAG_LEN, false))
 		return NULL;
 
+	skb_len = skb->len;
+	skb_csum = skb_checksum(skb, 0, skb->len, 0);
+
 	skb_push(skb, BRCM_LEG_TAG_LEN);
 
 	dsa_alloc_etype_header(skb, BRCM_LEG_TAG_LEN);
@@ -242,10 +251,17 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 	brcm_tag[1] = BRCM_LEG_TYPE_LO;
 
 	/* Broadcom tag value */
-	brcm_tag[2] = BRCM_LEG_EGRESS;
-	brcm_tag[3] = 0;
+	brcm_tag[2] = BRCM_LEG_EGRESS | BRCM_LEG_LEN_HI(skb_len);
+	brcm_tag[3] = BRCM_LEG_LEN_LO(skb_len);
 	brcm_tag[4] = 0;
 	brcm_tag[5] = dp->index & BRCM_LEG_PORT_ID;
+
+	/* Original FCS value */
+	skb_put_data(skb, &skb_csum, ETH_FCS_LEN);
+
+	pr_info("brcm_leg_tag_xmit: brcm_tag=[%02x %02x %02x %02x %02x %02x]\n", brcm_tag[0], brcm_tag[1], brcm_tag[2], brcm_tag[3], brcm_tag[4], brcm_tag[5]);
+	pr_info("brcm_leg_tag_xmit: skb_len=%d (0x%x) skb_csum=%x\n", skb_len, skb_len, skb_csum);
+	skb_dump(KERN_INFO, skb, true);
 
 	return skb;
 }

@@ -518,6 +518,10 @@ void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 	unsigned int i;
 	u16 pvlan;
 
+	/* BCM5325 CPU port is at 8 */
+	if ((is5325(dev) || is5365(dev)) && cpu_port == B53_CPU_PORT_25)
+		cpu_port = B53_CPU_PORT;
+
 	/* Enable the IMP port to be in the same VLAN as the other ports
 	 * on a per-port basis such that we only have Port i and IMP in
 	 * the same VLAN.
@@ -633,6 +637,7 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	struct b53_device *dev = ds->priv;
 	unsigned int cpu_port;
 	int ret = 0;
+	u8 val = 0;
 	u16 pvlan;
 
 	if (!dsa_is_user_port(ds, port))
@@ -649,8 +654,14 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	if (ret)
 		return ret;
 
+	b53_read8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), &val);
+	dev_info(ds->dev, "B53_MEM_ACCESS_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, val);
+
 	/* Clear the Rx and Tx disable bits and set to no spanning tree */
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), 0);
+	b53_write8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), 0);
+
+	dev_info(ds->dev, "B53_CTRL_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, 0);
 
 	/* Set this port, and only this one to be in the default VLAN,
 	 * if member of a bridge, restore its membership prior to
@@ -677,10 +688,16 @@ void b53_disable_port(struct dsa_switch *ds, int port)
 	struct b53_device *dev = ds->priv;
 	u8 reg;
 
+	b53_read8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), &reg);
+	dev_info(ds->dev, "B53_MEM_ACCESS_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, reg);
+
 	/* Disable Tx/Rx for the port */
 	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), &reg);
 	reg |= PORT_CTRL_RX_DISABLE | PORT_CTRL_TX_DISABLE;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
+	b53_write8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), reg);
+
+	dev_info(ds->dev, "B53_CTRL_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, reg);
 
 	if (dev->ops->irq_disable)
 		dev->ops->irq_disable(dev, port);
@@ -772,10 +789,16 @@ static void b53_enable_cpu_port(struct b53_device *dev, int port)
 	if ((is5325(dev) || is5365(dev)) && port == B53_CPU_PORT_25)
 		port = B53_CPU_PORT;
 
+	b53_read8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), &port_ctrl);
+	dev_info(dev->ds->dev, "B53_MEM_ACCESS_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, port_ctrl);
+
 	port_ctrl = PORT_CTRL_RX_BCST_EN |
 		    PORT_CTRL_RX_MCST_EN |
 		    PORT_CTRL_RX_UCST_EN;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), port_ctrl);
+	b53_write8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), port_ctrl);
+
+	dev_info(dev->ds->dev, "B53_CTRL_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, port_ctrl);
 
 	b53_brcm_hdr_setup(dev->ds, port);
 
@@ -2146,16 +2169,28 @@ void b53_br_set_stp_state(struct dsa_switch *ds, int port, u8 state)
 		return;
 	}
 
+	b53_read8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), &reg);
+	dev_info(ds->dev, "B53_MEM_ACCESS_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, reg);
+
 	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), &reg);
 	reg &= ~PORT_CTRL_STP_STATE_MASK;
 	reg |= hw_state;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
+	b53_write8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(port), reg);
+
+	dev_info(ds->dev, "B53_CTRL_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", port, reg);
 
 	if (is5325(dev)) {
+		b53_read8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(B53_CPU_PORT), &reg);
+		dev_info(ds->dev, "B53_MEM_ACCESS_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", B53_CPU_PORT, reg);
+
 		b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(B53_CPU_PORT), &reg);
 		reg &= ~PORT_CTRL_STP_STATE_MASK;
 		reg |= hw_state;
 		b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(B53_CPU_PORT), reg);
+		b53_write8(dev, B53_MEM_ACCESS_PAGE, B53_PORT_CTRL(B53_CPU_PORT), reg);
+
+		dev_info(ds->dev, "B53_CTRL_PAGE->B53_PORT_CTRL(%d) = 0x%x\n", B53_CPU_PORT, reg);
 	}
 }
 EXPORT_SYMBOL(b53_br_set_stp_state);
